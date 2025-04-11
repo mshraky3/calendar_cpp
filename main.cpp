@@ -1,14 +1,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <queue>
-#include <list>
 #include <ctime>
-#include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <functional>
 
 using namespace std;
 
@@ -21,13 +17,68 @@ struct Event
 
     bool operator<(const Event &other) const
     {
-        return priority > other.priority; // Min-heap behavior
+        return priority > other.priority;
     }
 };
 
-unordered_map<string, vector<Event>> events_map;
+struct HashTable
+{
+    static const int TABLE_SIZE = 31;
+    vector<Event> table[TABLE_SIZE];
 
-// Helper functions
+    int hash(const string &date)
+    {
+
+        int day = stoi(date.substr(0, 2));
+        int month = stoi(date.substr(3, 2));
+        int year = stoi(date.substr(6, 4));
+
+        return ((day * 31 + month) * 31 + year) % TABLE_SIZE;
+    }
+
+    void insert(const Event &event)
+    {
+        int index = hash(event.date);
+
+        for (const auto &e : table[index])
+        {
+            if (e.date == event.date && e.name == event.name)
+            {
+                return;
+            }
+        }
+        table[index].push_back(event);
+    }
+
+    vector<Event> &get(const string &date)
+    {
+        return table[hash(date)];
+    }
+
+    bool contains(const string &date)
+    {
+        int index = hash(date);
+        for (const auto &e : table[index])
+        {
+            if (e.date == date)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void clear()
+    {
+        for (int i = 0; i < TABLE_SIZE; i++)
+        {
+            table[i].clear();
+        }
+    }
+};
+
+HashTable events_map;
+
 bool validate_date(const string &date)
 {
     if (date.size() != 10 || date[2] != '/' || date[5] != '/')
@@ -64,29 +115,29 @@ void display_header(int month, int year)
 
 void display_day_events(const string &date)
 {
-    if (!events_map.count(date))
+    if (!events_map.contains(date))
         return;
 
-    for (const auto &event : events_map[date])
+    for (const auto &event : events_map.get(date))
     {
         string priority_color;
         switch (event.priority)
         {
         case 1:
             priority_color = "\033[1;31m";
-            break; // Red for high priority
+            break;
         case 2:
             priority_color = "\033[1;35m";
-            break; // Magenta
+            break;
         case 3:
             priority_color = "\033[1;34m";
-            break; // Blue
+            break;
         case 4:
             priority_color = "\033[1;32m";
-            break; // Green
+            break;
         case 5:
             priority_color = "\033[1;37m";
-            break; // White for low priority
+            break;
         }
         cout << priority_color << "  * " << event.name << "\033[0m";
     }
@@ -104,12 +155,12 @@ void display_calendar(int month, int year)
     tm time_in = {0, 0, 0, 1, month - 1, year - 1900};
     mktime(&time_in);
     int start_day = time_in.tm_wday;
-    int days_in_month = 31; // Simplified
+    int days_in_month = 31;
 
     int day_counter = 1;
     for (int week = 0; week < 6; week++)
     {
-        // Display day numbers and events
+
         for (int day = 0; day < 7; day++)
         {
             if ((week == 0 && day < start_day) || day_counter > days_in_month)
@@ -123,7 +174,7 @@ void display_calendar(int month, int year)
                  << setw(2) << setfill('0') << month << "/2025";
             string date_str = date.str();
 
-            if (events_map.count(date_str))
+            if (events_map.contains(date_str))
             {
                 cout << "\033[1;32m" << setw(3) << "[" << day_counter << "]" << "\033[0m";
             }
@@ -132,13 +183,12 @@ void display_calendar(int month, int year)
                 cout << setw(4) << day_counter << " ";
             }
 
-            // Display events for this day
-            if (events_map.count(date_str))
+            if (events_map.contains(date_str))
             {
                 display_day_events(date_str);
             }
 
-            cout << setw(8 - (events_map.count(date_str) ? 4 : 0)) << " ";
+            cout << setw(8 - (events_map.contains(date_str) ? 4 : 0)) << " ";
             day_counter++;
         }
         cout << "\n";
@@ -151,7 +201,7 @@ void add_event()
 
     while (true)
     {
-        cout << "Enter date (dd/mm/2025): ";
+        cout << "Enter date (dd/mm/2025) : ";
         cin >> e.date;
         if (validate_date(e.date))
             break;
@@ -173,18 +223,18 @@ void add_event()
 
     priority_queue<Event> pq;
 
-    if (events_map.count(e.date))
+    if (events_map.contains(e.date))
     {
-        for (const auto &ev : events_map[e.date])
+        for (const auto &ev : events_map.get(e.date))
             pq.push(ev);
     }
 
     pq.push(e);
-    events_map[e.date].clear();
+    events_map.get(e.date).clear();
 
     while (!pq.empty())
     {
-        events_map[e.date].push_back(pq.top());
+        events_map.get(e.date).push_back(pq.top());
         pq.pop();
     }
 }
@@ -195,17 +245,26 @@ void edit_event()
     cout << "Enter event date to edit (dd/mm/2025): ";
     cin >> date;
 
-    if (!events_map.count(date))
+    if (!events_map.contains(date))
     {
         cout << "\033[1;31mNo events found!\033[0m\n";
         return;
     }
 
-    cout << "Events on " << date << ":\n";
-    for (int i = 0; i < events_map[date].size(); i++)
+    vector<Event> events = events_map.get(date);
+    Event events_array[100];
+    int event_count = 0;
+
+    for (const auto &e : events)
     {
-        cout << i + 1 << ". " << events_map[date][i].name
-             << " (Priority: " << events_map[date][i].priority << ")\n";
+        events_array[event_count++] = e;
+    }
+
+    cout << "Events on " << date << ":\n";
+    for (int i = 0; i < event_count; i++)
+    {
+        cout << i + 1 << ". " << events_array[i].name
+             << " (Priority: " << events_array[i].priority << ")\n";
     }
 
     int choice;
@@ -213,28 +272,95 @@ void edit_event()
     cin >> choice;
     choice--;
 
-    if (choice < 0 || choice >= events_map[date].size())
+    if (choice < 0 || choice >= event_count)
     {
         cout << "\033[1;31mInvalid selection!\033[0m\n";
         return;
     }
 
-    cout << "New name (" << events_map[date][choice].name << "): ";
+    cout << "New name (" << events_array[choice].name << "): ";
     cin.ignore();
     string name;
     getline(cin, name);
     if (!name.empty())
-        events_map[date][choice].name = name;
+        events_array[choice].name = name;
 
-    cout << "New priority (" << events_map[date][choice].priority << "): ";
+    cout << "New priority (" << events_array[choice].priority << "): ";
     string prio;
     getline(cin, prio);
     if (!prio.empty())
-        events_map[date][choice].priority = stoi(prio);
+        events_array[choice].priority = stoi(prio);
 
-    sort(events_map[date].begin(), events_map[date].end(),
-         [](const Event &a, const Event &b)
-         { return a.priority < b.priority; });
+    events_map.get(date).clear();
+    for (int i = 0; i < event_count; i++)
+    {
+        events_map.get(date).push_back(events_array[i]);
+    }
+}
+
+void delete_event()
+{
+    string date;
+    cout << "Enter event date to delete from (dd/mm/2025): ";
+    cin >> date;
+
+    if (!events_map.contains(date))
+    {
+        cout << "\033[1;31mNo events found!\033[0m\n";
+        return;
+    }
+
+    vector<Event> events = events_map.get(date);
+    Event events_array[100];
+    int event_count = 0;
+
+    for (const auto &e : events)
+    {
+        events_array[event_count++] = e;
+    }
+
+    cout << "Events on " << date << ":\n";
+    for (int i = 0; i < event_count; i++)
+    {
+        cout << i + 1 << ". " << events_array[i].name
+             << " (Priority: " << events_array[i].priority << ")\n";
+    }
+
+    int choice;
+    cout << "Select event to delete (0 to cancel): ";
+    cin >> choice;
+
+    if (choice == 0)
+    {
+        cout << "Deletion cancelled.\n";
+        return;
+    }
+
+    choice--;
+
+    if (choice < 0 || choice >= event_count)
+    {
+        cout << "\033[1;31mInvalid selection!\033[0m\n";
+        return;
+    }
+
+    Event new_events_array[100];
+    int new_count = 0;
+    for (int i = 0; i < event_count; i++)
+    {
+        if (i != choice)
+        {
+            new_events_array[new_count++] = events_array[i];
+        }
+    }
+
+    events_map.get(date).clear();
+    for (int i = 0; i < new_count; i++)
+    {
+        events_map.get(date).push_back(new_events_array[i]);
+    }
+
+    cout << "\033[1;32mEvent deleted successfully!\033[0m\n";
 }
 
 void cleanup_events()
@@ -248,9 +374,9 @@ void cleanup_events()
         Node *next;
     } *head = nullptr, *tail = nullptr;
 
-    for (auto &date_events : events_map)
+    for (int i = 0; i < HashTable::TABLE_SIZE; i++)
     {
-        for (auto &e : date_events.second)
+        for (const auto &e : events_map.table[i])
         {
             Node *newNode = new Node{e};
             if (!head)
@@ -281,11 +407,12 @@ void cleanup_events()
     }
 
     events_map.clear();
-    while (head)
+    current_node = head;
+    while (current_node)
     {
-        events_map[head->event.date].push_back(head->event);
-        Node *temp = head;
-        head = head->next;
+        events_map.insert(current_node->event);
+        Node *temp = current_node;
+        current_node = current_node->next;
         delete temp;
     }
 }
@@ -303,7 +430,8 @@ int main()
 
         cout << "\nOptions:\n"
              << "\033[1;32m[N]\033[0mext \033[1;34m[P]\033[0mprev "
-             << "\033[1;35m[A]\033[0mdd \033[1;33m[E]\033[0mdit \033[1;31m[Q]\033[0muit\n> ";
+             << "\033[1;35m[A]\033[0mdd \033[1;33m[E]\033[0mdit "
+             << "\033[1;31m[D]\033[0melete \033[1;36m[Q]\033[0muit\n> ";
 
         char choice;
         cin >> choice;
@@ -321,6 +449,9 @@ int main()
             break;
         case 'e':
             edit_event();
+            break;
+        case 'd':
+            delete_event();
             break;
         case 'q':
             return 0;
