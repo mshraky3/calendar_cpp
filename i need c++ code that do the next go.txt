@@ -1,4 +1,3 @@
-i need c++ code that do the next goal 
 
 
 its events calendar  that have the year 2025 init 
@@ -15,20 +14,20 @@ make the layout shows what events is more important than other
 and the same day could have multiple events 
 
 
-the most importnate part is the code will be in multiple files 
+the most importnate part is the code will be in multiple function s 
 
-the add file which have the functionality to add new event  and the code MUST  have Priority Queues  
-
-
-the edit file that  have the functionality to edit any event by asking the user the date of the event and take the new data to edit the event  ,the code of this file MUST use arrays 
+the add function  which have the functionality to add new event  and the code MUST  have Priority Queues  
 
 
-
-the clean up file that will check if the current date and mark all the old event's  as passed away in the design of the month , the code of this file MUST use linked list  
+the edit function  that  have the functionality to edit any event by asking the user the date of the event and take the new data to edit the event  ,the code of this function  MUST use arrays 
 
 
 
-the main file that all the other files and displays the calendar  to show it to the user along  with the menu  , the code in  main file MUST  use hash tables 
+the clean up function  that will check if the current date and mark all the old event's  as passed away in the design of the month , the code of this function  MUST use linked list  
+
+
+
+the main function  that all the other function s and displays the calendar  to show it to the user along  with the menu  , the code in  main function  MUST  use hash tables 
 
 
 
